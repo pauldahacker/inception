@@ -1,21 +1,26 @@
 name = inception
+
+define export_secrets
+	DB_USER=$$(cat secrets/credentials.txt) \
+	DB_PASS=$$(cat secrets/db_password.txt) \
+	DB_ROOT=$$(cat secrets/db_root_password.txt)
+endef
+
 all:
-	@printf "Launch configuration ${name}...\n"
+	@printf "Launching configuration ${name}...\n"
 	@bash srcs/requirements/wordpress/tools/make_dir.sh
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d
+	@$(call export_secrets) docker-compose --env-file srcs/.env -f ./srcs/docker-compose.yml up -d
 
 build:
 	@printf "Building configuration ${name}...\n"
 	@bash srcs/requirements/wordpress/tools/make_dir.sh
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+	@$(call export_secrets) docker-compose --env-file srcs/.env -f ./srcs/docker-compose.yml up -d --build
 
 down:
-	@printf "Stopping configuration ${name}...\n"
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env down
+	@docker-compose --env-file srcs/.env -f ./srcs/docker-compose.yml down
 
 re: down
-	@printf "Rebuild configuration ${name}...\n"
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+	@$(call export_secrets) docker-compose --env-file srcs/.env -f ./srcs/docker-compose.yml up -d --build
 
 clean: down
 	@printf "Cleaning configuration ${name}...\n"
