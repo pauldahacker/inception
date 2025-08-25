@@ -22,11 +22,6 @@ services:
     build:
       context: .
       dockerfile: requirements/mariadb/Dockerfile
-      args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
-        DB_ROOT: ${DB_ROOT}
     container_name: mariadb
     ports:
       - "3306:3306"
@@ -35,15 +30,16 @@ services:
     restart: always
     networks:
       - inception
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_ROOT=${DB_ROOT}
 
   wordpress:
     build:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
-      args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
     container_name: wordpress
     depends_on:
       - mariadb
@@ -52,6 +48,11 @@ services:
       - inception
     volumes:
       - wp-volume:/var/www/
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DOMAIN_NAME=${DOMAIN_NAME}
 
 volumes:
   wp-volume:
@@ -67,5 +68,5 @@ volumes:
       device: ${HOME}/data/mariadb
 
 networks:
-    inception:
-        driver: bridge
+  inception:
+    driver: bridge

@@ -1,47 +1,41 @@
 FROM alpine:3.21
 
-# Set environment variables for database connection
-ARG DB_NAME
-ARG DB_USER
-ARG DB_PASS
+# Install
+RUN apk update && apk add --no-cache \
+    php82 php82-fpm php82-mysqli php82-json php82-mbstring \
+    php82-session php82-zlib php82-curl php82-dom php82-opcache \
+    php82-phar php82-gd php82-intl php82-pdo php82-pdo_mysql \
+    mariadb-client curl  \
+    && ln -sf /usr/bin/php82 /usr/bin/php
 
-# Install necessary packages including PHP 8.2 and extensions
-RUN apk update && apk upgrade && apk add --no-cache \
-    php82 \
-    php82-fpm \
-    php82-mysqli \
-    php82-json \
-    php82-curl \
-    php82-dom \
-    php82-exif \
-    php82-fileinfo \
-    php82-mbstring \
-    php82-openssl \
-    php82-xml \
-    php82-zip \
-    php82-redis \
-    wget \
-    unzip && \
-    # Configure PHP-FPM to listen on port 9000
-    sed -i "s|listen = 127.0.0.1:9000|listen = 9000|g" /etc/php82/php-fpm.d/www.conf && \
-    sed -i "s|;listen.owner = nobody|listen.owner = nobody|g" /etc/php82/php-fpm.d/www.conf && \
-    sed -i "s|;listen.group = nobody|listen.group = nobody|g" /etc/php82/php-fpm.d/www.conf && \
-    rm -f /var/cache/apk/*
+# Increase PHP memory limit
+RUN echo "memory_limit=512M" > /etc/php82/php.ini
+
+RUN sed -i 's|127.0.0.1:9000|0.0.0.0:9000|' /etc/php*/php-fpm.d/www.conf
+
+# Create user & directory
+RUN adduser -D -g 'www' www && \
+    mkdir -p /var/www && \
+    chown -R www:www /var/www
+
+# Install WP-CLI
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar && \
+    mv wp-cli.phar /usr/local/bin/wp
+
+WORKDIR /var/www
+RUN wp core download --allow-root && chown -R www:www /var/www
+
+# Copy files
+COPY ./requirements/wordpress/tools/wordpress-entrypoint.sh /usr/local/bin/
+COPY ./requirements/wordpress/tools/add_wp_users.sh /var/www/
+
+# Permissions
+RUN chmod +x /usr/local/bin/wordpress-entrypoint.sh \
+    && chmod +x /var/www/add_wp_users.sh
 
 # Set working directory
 WORKDIR /var/www
 
-# Download and unpack WordPress
-RUN wget https://wordpress.org/latest.zip && \
-    unzip latest.zip && \
-    cp -rf wordpress/* . && \
-    rm -rf wordpress latest.zip
-
-# Add and execute WordPress config script
-COPY ./requirements/wordpress/conf/wp-config-create.sh .
-RUN sh wp-config-create.sh && rm wp-config-create.sh && \
-    chmod -R 0777 wp-content/
-
-# Start PHP-FPM server
-CMD ["/usr/sbin/php-fpm82", "-F"]
-
+# Set entrypoint
+CMD ["wordpress-entrypoint.sh"]
